@@ -1,23 +1,39 @@
 from tkinter import *  
 from tkinter import ttk,messagebox
-from database import connectData
+from style import stylesheet
+import database
 import time
+from configparser import ConfigParser
 
 class mainLayout:
     def __init__(self,main):
         self.master=main
+        self.menu()
         self.header()
         self.content()
-        self.menu()
+        self.footer()
+        
+        
                 
         
     def header(self):
         self.head=header(self.master)
 
     def content(self):
-        self.masterFrame=Frame(self.master,bg="red")
-        self.masterFrame.pack(fill=BOTH,expand=True)
+        self.contentFrame=Frame(self.master,bg="red")
+        self.contentFrame.pack(fill=BOTH,expand=True)
+        self.contentFrame.rowconfigure(0,weight=1)
+        self.contentFrame.columnconfigure(0,weight=1)
+
+        self.getObj=getDataLayout(self.contentFrame)
+        self.insertObj=insertDataLayout(self.contentFrame)
+        self.analysisObj=analysisLayout(self.contentFrame)
         self.home()
+
+    def footer(self):
+        self.foot=Frame(self.master)
+        self.foot.pack()
+        Label(self.foot,text="This is footer").pack()
 
     def menu(self):
         self.menuBar=Menu(self.master)
@@ -37,24 +53,19 @@ class mainLayout:
         
 
     def home(self):
-        self.destroyFramesWidgets()
+        self.getObj.master.tkraise()
         self.head.updateTitle("BILLING")
-        getDataLayout(self.masterFrame)
 
     def data(self):
-        self.destroyFramesWidgets()
+        self.insertObj.master.tkraise()
         self.head.updateTitle("DATABASE")
-        self.insertObj=insertDataLayout(self.masterFrame)
+        
         
 
     def analysis(self):
-        self.destroyFramesWidgets()
+        self.analysisObj.master.tkraise()
         self.head.updateTitle("ANALYSIS")
         
-
-    def destroyFramesWidgets(self):
-        for widget in self.masterFrame.winfo_children():
-            widget.destroy()
 
     def quitMessageBox(self):
 
@@ -74,12 +85,12 @@ class header:
 
         self.timeLabel=Label(self.headerFrame,font=("",18,""),bg="black",fg="white")
         self.timeLabel.pack(side=RIGHT,padx=10,pady=5)
-        self.updateTime()
         
-    def updateTime(self):
+        def updateTime():
 
-        self.timeLabel.config(text=time.strftime("%I")+":"+time.strftime("%M")+":"+time.strftime("%S")+" "+time.strftime("%p"))
-        self.timeLabel.after(1000,self.updateTime)
+            self.timeLabel.config(text=time.strftime("%I:%M:%S %p"))
+            self.timeLabel.after(1000,updateTime)
+        updateTime()
 
     def mainTitle(self):
         self.title=Label(self.headerFrame,font=("bauhaus 93",28,""))
@@ -99,24 +110,27 @@ class header:
 
 class getDataLayout:
     def __init__(self,main):
-        self.getFrame=Frame(main)
-        self.getFrame.pack(side=LEFT,anchor=N,padx=100,pady=100)
-        self.treeViewFrame=Frame(main)
-        self.treeViewFrame.pack(side=RIGHT,padx=20)
+        self.master=Frame(main)
+        self.master.grid(row=0,column=0,sticky=NSEW)
+        
+        self.initialize()
         self.billingInput()
         self.billingList()
-
+        self.keyBindings()
     
     def billingInput(self):
+        self.getFrame=Frame(self.master,bg="red")
+        self.getFrame.pack(side=LEFT,anchor=N,padx=100,pady=100)
         
-        self.inputFont=("",18,"")
-        self.LabelFont=("impact",15,"")
 
-        self.itemLabel=Label(self.getFrame,text="ITEM NO",font=self.LabelFont)
-        self.itemNO=Entry(self.getFrame,font=self.inputFont)
-        self.quantityLabel=Label(self.getFrame,text="QUANTITY",font=self.LabelFont)
-        self.quantity=Entry(self.getFrame,font=self.inputFont)
-        self.add=Button(self.getFrame,text="ADD",font=self.LabelFont,width=10)
+        self.inputFont=("",18,"")
+        self.LabelFont=("impact",18,"")
+
+        self.itemLabel=Label(self.getFrame,text="ITEM NO",**stylesheet().billingLabel)
+        self.itemNO=Entry(self.getFrame,**stylesheet().billingEntry)
+        self.quantityLabel=Label(self.getFrame,text="QUANTITY",**stylesheet().billingLabel)
+        self.quantity=Entry(self.getFrame,**stylesheet().billingEntry)
+        self.add=Button(self.getFrame,text="ADD",font=self.LabelFont,width=10,command=self.addCart)
 
         self.itemLabel.pack(pady=10)
         self.itemNO.pack(pady=10,padx=20)
@@ -125,11 +139,20 @@ class getDataLayout:
         self.add.pack(pady=10)
         
         self.itemNO.focus_set()
+
+        self.customerDetails()
+
+        self.print=Button(self.getFrame,text="PRINT",font=self.LabelFont,command=self.billingUpload)
+        self.print.pack(pady=10)
     
     def billingList(self):
         
+        self.billingListFrame=Frame(self.master,bg="green")
+        self.billingListFrame.pack(side=RIGHT,padx=20,fill=Y)
 
-        self.itemsList=ttk.Treeview(self.treeViewFrame)
+        self.billingInfo()
+
+        self.itemsList=ttk.Treeview(self.billingListFrame)
         self.itemsList.pack()
 
         self.itemsList['columns']=["sno","no","name","quantity","rate","price"]
@@ -143,27 +166,154 @@ class getDataLayout:
         self.itemsList.heading("price",text="PRICE")
 
         self.itemsList.column("#0",width=0,stretch=OFF)
-        self.itemsList.column("sno",width=60,minwidth=50)
-        self.itemsList.column("no",width=120,minwidth=90)
-        self.itemsList.column("name",width=170,minwidth=160)
-        self.itemsList.column("quantity",width=120,minwidth=90)
-        self.itemsList.column("rate",width=170,minwidth=50)
-        self.itemsList.column("price",width=170,minwidth=50)
+        self.itemsList.column("sno",width=60,minwidth=50,anchor=CENTER)
+        self.itemsList.column("no",width=120,minwidth=90,anchor=CENTER)
+        self.itemsList.column("name",width=270,minwidth=160,anchor=CENTER)
+        self.itemsList.column("quantity",width=120,minwidth=90,anchor=CENTER)
+        self.itemsList.column("rate",width=120,minwidth=50,anchor=E)
+        self.itemsList.column("price",width=120,minwidth=50,anchor=E)
+
+        self.billingCheckout() 
+
+    def billingInfo(self):
+        self.billingNumNext()
+        self.billingInfoFrame=Frame(self.billingListFrame,bg="blue")
+        self.billingInfoFrame.pack(fill=X)
+
+        self.title=Label(self.billingInfoFrame,text="BILLING")
+        self.title.pack()
+
+        self.billNoLabel=Label(self.billingInfoFrame,text="BILL NO")
+        self.billNoLabel.pack(side=LEFT,padx=10)
+
+        self.billNo=Label(self.billingInfoFrame,text=self.billNum)
+        self.billNo.pack()
+        
+
+    def billingNumNext(self):
+        date=time.strftime("%d%m%Y")
+        self.customerCount=int(self.parserControl.get('customerDetails','customerCount'))
+        checkDate=self.parserControl.get('customerDetails','date')
+
+        if checkDate==date:
+            self.customerCount+=1
+        else:
+            self.customerCount=1
+            self.parserControl.set('customerDetails','date',date)
+        self.parserControl.set('customerDetails','customerCount',str(self.customerCount))
+                    
+        self.billNum="B"+date+str(self.customerCount)
+
+    def configWriting(self):
+        with open("settings.ini","w") as settingsFile:
+            self.parserControl.write(settingsFile)
+
+    def billingCheckout(self):
+        self.checkoutFrame=Frame(self.billingListFrame,bg="brown")
+        self.checkoutFrame.pack(side=RIGHT,anchor=N,padx=50,pady=10)
+
+        self.totalLabel=Label(self.checkoutFrame,text="TOTAL",**stylesheet().billingListLabel)
+        self.totalLabel.grid(row=0,column=0)
+
+        self.totalPriceLabel=Label(self.checkoutFrame,text=self.totalPrice,**stylesheet().billingListLabel)
+        self.totalPriceLabel.grid(row=0,column=1,padx=22)
+
+    def billingUpload(self):
+        self.billItems=str(self.CartItemsDic)
+        self.billingObj.customerBillCopy(self.billNum,self.billItems)
+        self.CartItemsDic.clear()
+        self.configWriting()
+        self.billingNumNext()
+        self.billNo.config(text=self.billNum)
+
+    
+    def addCart(self):
+        itemdetails=self.billingObj.getItemSpecific(self.itemNO.get())
+        self.totalAmt=float(self.quantity.get())*itemdetails[2]
+
+        self.itemsList.insert(parent="",index=END,iid=self.totalItems,values=(self.totalItems+1,itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
+        self.CartItemsDic[self.itemNO.get()]=self.quantity.get()
+        
+        self.totalPrice+=self.totalAmt
+        self.totalPriceLabel.config(text=self.totalPrice)   
+        
+        self.deleteInputs()
+        self.totalItems+=1        
+
+    def deleteInputs(self):
+        self.itemNO.delete(0,END)
+        self.quantity.delete(0,END)
+        self.itemNO.focus_set()
+
+    def initialize(self):
+        self.billingObj=database.connectData()
+        self.totalItems=0
+        self.totalPrice=0.0
+        self.customerCount=0
+        self.CartItemsDic={}
+        self.parserControl=ConfigParser()
+        self.parserControl.read("settings.ini")
+
+    def customerDetails(self):
+        
+        self.comboFont=("lucida fax",14,"")
+
+        self.customerDetailsFrame=Frame(self.getFrame)
+        self.customerDetailsFrame.pack(pady=50)
+
+        self.cusNameLabel=Label(self.customerDetailsFrame,text="CUSTOMER NAME",**stylesheet().billingLabel)
+        self.cusName=Entry(self.customerDetailsFrame,**stylesheet().customerEntry)
+        self.payModeLabel=Label(self.customerDetailsFrame,text="PAYMENT",**stylesheet().billingLabel)
+        
+        self.paySelect=StringVar()
+        self.payList=["CASH","CARD","UPI"]
+        self.paySelect.set(self.payList[0])
+        self.payMode=OptionMenu(self.customerDetailsFrame,self.paySelect,*self.payList)
+        self.payMode.config(**stylesheet().customerOption)
+        self.payModeMenu=self.customerDetailsFrame.nametowidget(self.payMode.menuname)
+        self.payModeMenu.config(**stylesheet().customerOption)
+
+        self.cusNameLabel.grid(row=0,column=0,pady=5,padx=10)
+        self.cusName.grid(row=0,column=1,pady=5,padx=10)
+        self.payModeLabel.grid(row=1,column=0,pady=5,padx=10)
+        self.payMode.grid(row=1,column=1,pady=5,padx=10,sticky=W)
+
+
+    def keyBindings(self):
+
+        def itemNocheck(event):
+            self.quantity.focus_set()
+            if self.itemNO.get() in self.CartItemsDic.keys():
+                self.add.config(text="UPDATE")
+            else:
+                self.add.config(text="ADD")
+                
+        def addingProcess(event):
+            self.addCart()
+            self.add.config(text="ADD")
+        self.itemNO.bind("<Return>",itemNocheck)
+        self.quantity.bind("<Return>",addingProcess)
+
         
 class insertDataLayout:
     def __init__(self,main):
-        self.putFrame=Frame(main)
-        self.putFrame.pack(side=LEFT,padx=100,pady=100,anchor=N)
 
-        self.listFrame=Frame(main)
-        self.listFrame.pack(side=RIGHT,padx=100,anchor=CENTER)
+        self.master=Frame(main)
+        #self.master.place(x=0,y=0)
+        self.master.grid(row=0,column=0,sticky=NSEW)       
 
-        self.conDat=connectData()
+        self.initializeDb()
         self.inputBox()
         self.listView()
-    
 
+        
+    def initializeDb(self):
+        self.conDat=database.connectData()
+ 
     def inputBox(self):
+        self.putFrame=Frame(self.master)
+        self.putFrame.pack(side=LEFT,padx=100,pady=100,anchor=N)
+
         self.inputFont=("",18,"")
         self.LabelFont=("",15,"")
         self.entryStyle={"highlightcolor":"blue",
@@ -171,13 +321,11 @@ class insertDataLayout:
 
         self.NoLabel=Label(self.putFrame,text="Item no",font=self.LabelFont)
         self.NameLabel=Label(self.putFrame,text="Name",font=self.LabelFont) 
-        self.RateLabel=Label(self.putFrame,text="Rate",font=self.LabelFont)
         self.PriceLabel=Label(self.putFrame,text="Price",font=self.LabelFont)
         self.DetailsLabel=Label(self.putFrame,text="Details",font=self.LabelFont)
 
         self.itemNo=Entry(self.putFrame,font=self.inputFont,highlightcolor="blue",highlightthickness=1)
         self.itemName=Entry(self.putFrame,font=self.inputFont,border=0)
-        self.itemRate=Entry(self.putFrame,font=self.inputFont)
         self.itemPrice=Entry(self.putFrame,font=self.inputFont)
         self.itemDetails=Text(self.putFrame,font=self.inputFont,width=20,height=5)
         
@@ -189,8 +337,6 @@ class insertDataLayout:
         self.itemNo.grid(row=0,column=1,padx=10,pady=10)
         self.NameLabel.grid(row=1,column=0,padx=10,pady=10,sticky=W)
         self.itemName.grid(row=1,column=1,padx=10,pady=10)
-        self.RateLabel.grid(row=2,column=0,padx=10,pady=10,sticky=W)
-        self.itemRate.grid(row=2,column=1,padx=10,pady=10)
         self.PriceLabel.grid(row=3,column=0,padx=10,pady=10,sticky=W)
         self.itemPrice.grid(row=3,column=1,padx=10,pady=10)
         self.DetailsLabel.grid(row=4,column=0,padx=10,pady=10,sticky=W)
@@ -206,7 +352,7 @@ class insertDataLayout:
             messagebox.showerror("Warning","Missing input(s)")
 
         else:
-            self.conDat.addItemProcess(self.itemNo.get(),self.itemName.get(),self.itemRate.get(),self.itemPrice.get(),self.itemDetails.get(0.1,END))
+            self.conDat.addItemProcess(self.itemNo.get(),self.itemName.get(),self.itemPrice.get(),self.itemDetails.get(0.1,END))
             self.deleteInput()
 
             self.itemTree.delete(*self.itemTree.get_children())
@@ -215,33 +361,33 @@ class insertDataLayout:
     def deleteInput(self):
         self.itemNo.delete(0,END)
         self.itemName.delete(0,END)
-        self.itemRate.delete(0,END)
         self.itemPrice.delete(0,END)
         self.itemDetails.delete(0.1,END)
       
         
     def listView(self):
-        
+        self.listFrame=Frame(self.master)
+        self.listFrame.pack(side=RIGHT,padx=100,anchor=CENTER)
+
         self.itemTree=ttk.Treeview(self.listFrame)
         self.itemTree.pack()
     
-        self.itemTree['columns']=("serial","no","name","rate","quantity","price")
+        self.itemTree['columns']=("serial","no","name","price","details")
 
-        self.itemTree.column("#0",width=1)
+        self.itemTree.column("#0",width=0,stretch=OFF)
         self.itemTree.column("serial",width=60,minwidth=50,stretch=NO)
         self.itemTree.column("no",width=100,minwidth=50)
         self.itemTree.column("name",width=260,minwidth=200)
-        self.itemTree.column("rate",width=100,minwidth=70)
-        self.itemTree.column("quantity",width=100,minwidth=70)
         self.itemTree.column("price",width=100,minwidth=70)
+        self.itemTree.column("details",width=100,minwidth=70)
 
         self.itemTree.heading("#0",text="")
         self.itemTree.heading("serial",text="S.No")
         self.itemTree.heading("no",text="ITEM.NO")
         self.itemTree.heading("name",text="ITEM NAME")
-        self.itemTree.heading("rate",text="RATE")
-        self.itemTree.heading("quantity",text="QUANTITY")
         self.itemTree.heading("price",text="PRICE")
+        self.itemTree.heading("details",text="DETAILS")
+
 
         self.insertTreeDatabase()
 
@@ -254,6 +400,10 @@ class insertDataLayout:
             self.itemTree.insert(parent="",index=END,iid=sNO,text="parent",values=(sNO,item[0],item[1],item[2],item[3]))
             sNO+=1
 
+class analysisLayout:
+    def __init__(self,main):
+        self.master=Frame(main)
+        self.master.grid(row=0,column=0,sticky=NSEW)
 
 if __name__ == "__main__":
     base=Tk()
