@@ -18,19 +18,30 @@ class connectData:
     def getItemProcess(self):
         self.itemCursor.execute("SELECT * FROM item")
         self.itemsData=self.itemCursor.fetchall()
-    
+        return self.itemsData
+
+    def getItemProcessItemNames(self):
+        self.itemCursor.execute("SELECT item_name FROM item")
+        self.itemsData=self.itemCursor.fetchall()
+        return self.itemsData
+
     def getItemSpecific(self,itemNO):
         self.itemCursor.execute("SELECT * FROM item WHERE item_number={ItemNo}".format(ItemNo=itemNO))
         self.itemSpecificRow=self.itemCursor.fetchone()
         return self.itemSpecificRow
-        
+    
+    def getItemName(self,itemName):
+        self.itemCursor.execute("SELECT * FROM item WHERE item_name='{ItemName}'".format(ItemName=itemName))
+        itemSpecificRow=self.itemCursor.fetchone()
+        return itemSpecificRow
+
     def customerBillCopy(self,billname,billitems):
         self.itemCursor.execute("INSERT INTO customerBill(name,items) values(?,?)",(billname,billitems))
         self.itemConn.commit()
+    
 
 if __name__=="__main__":
     #testing purpose
     
     print('database')
     c=connectData()
-    print(c.getItemSpecific(1001))

@@ -10,8 +10,9 @@ class mainLayout:
         self.master=main
         self.menu()
         self.header()
-        self.content()
         self.footer()
+        self.content()
+        
         
         
                 
@@ -32,7 +33,7 @@ class mainLayout:
 
     def footer(self):
         self.foot=Frame(self.master)
-        self.foot.pack()
+        self.foot.pack(side=BOTTOM)
         Label(self.foot,text="This is footer").pack()
 
     def menu(self):
@@ -117,26 +118,35 @@ class getDataLayout:
         self.billingInput()
         self.billingList()
         self.keyBindings()
+
+        
     
     def billingInput(self):
-        self.getFrame=Frame(self.master,bg="red")
-        self.getFrame.pack(side=LEFT,anchor=N,padx=100,pady=100)
         
+        self.getFrame=Frame(self.master,bg="red")
+        self.getFrame.pack(side=LEFT,anchor=N,padx=100)
+
+        self.initializeValidate()
 
         self.inputFont=("",18,"")
         self.LabelFont=("impact",18,"")
-
         self.itemLabel=Label(self.getFrame,text="ITEM NO",**stylesheet().billingLabel)
-        self.itemNO=Entry(self.getFrame,**stylesheet().billingEntry)
+        self.itemNO=Entry(self.getFrame,**stylesheet().billingEntry,validate="key",validatecommand=(self.entryIntReg,"%P"))
+        self.itemNameLabel=Label(self.getFrame,text="ITEM NAME",**stylesheet().billingLabel)
+        self.itemName=Entry(self.getFrame,**stylesheet().billingEntry)
         self.quantityLabel=Label(self.getFrame,text="QUANTITY",**stylesheet().billingLabel)
-        self.quantity=Entry(self.getFrame,**stylesheet().billingEntry)
+        self.quantity=Entry(self.getFrame,**stylesheet().billingEntry,validate="key",validatecommand=(self.entryIntReg,"%P"))
         self.add=Button(self.getFrame,text="ADD",font=self.LabelFont,width=10,command=self.addCart)
+        self.reset=Button(self.getFrame,text="RESET",font=self.LabelFont,width=10)
 
         self.itemLabel.pack(pady=10)
         self.itemNO.pack(pady=10,padx=20)
+        self.itemNameLabel.pack(pady=10,padx=20)
+        self.itemName.pack(pady=10,padx=20)
         self.quantityLabel.pack(pady=10,padx=20)
         self.quantity.pack(pady=10,padx=20)
         self.add.pack(pady=10)
+        self.reset.pack(pady=10)
         
         self.itemNO.focus_set()
 
@@ -145,6 +155,19 @@ class getDataLayout:
         self.print=Button(self.getFrame,text="PRINT",font=self.LabelFont,command=self.billingUpload)
         self.print.pack(pady=10)
     
+        print(self.itemNO.winfo_class())
+
+        self.search=Listbox(self.getFrame,font=self.itemName.cget('font'),height=0)
+
+    def searchListPlace(self):
+        
+        self.search.place(x=self.itemName.winfo_x(),y=self.itemName.winfo_y()+2*self.itemName.cget('width'))
+        itemsData=self.billingObj.getItemProcessItemNames()
+        print(itemsData)
+        for items in itemsData:
+            if self.itemName.get().lower() in items[0].lower():
+                self.search.insert(END,items[0])
+
     def billingList(self):
         
         self.billingListFrame=Frame(self.master,bg="green")
@@ -174,6 +197,7 @@ class getDataLayout:
         self.itemsList.column("price",width=120,minwidth=50,anchor=E)
 
         self.billingCheckout() 
+        
 
     def billingInfo(self):
         self.billingNumNext()
@@ -191,7 +215,7 @@ class getDataLayout:
         
 
     def billingNumNext(self):
-        date=time.strftime("%d%m%Y")
+        date=time.strftime("%d/%m/%Y")
         self.customerCount=int(self.parserControl.get('customerDetails','customerCount'))
         checkDate=self.parserControl.get('customerDetails','date')
 
@@ -202,7 +226,7 @@ class getDataLayout:
             self.parserControl.set('customerDetails','date',date)
         self.parserControl.set('customerDetails','customerCount',str(self.customerCount))
                     
-        self.billNum="B"+date+str(self.customerCount)
+        self.billNum="B"+date[:2]+time.strftime("%w")+str(self.customerCount)
 
     def configWriting(self):
         with open("settings.ini","w") as settingsFile:
@@ -219,29 +243,52 @@ class getDataLayout:
         self.totalPriceLabel.grid(row=0,column=1,padx=22)
 
     def billingUpload(self):
+        
+        for line in self.itemsList.get_children():               
+            value= self.itemsList.item(line)['values']
+            self.CartItemsDic[value[1]]=value[3]
         self.billItems=str(self.CartItemsDic)
         self.billingObj.customerBillCopy(self.billNum,self.billItems)
         self.CartItemsDic.clear()
         self.configWriting()
         self.billingNumNext()
         self.billNo.config(text=self.billNum)
-
-    
-    def addCart(self):
-        itemdetails=self.billingObj.getItemSpecific(self.itemNO.get())
-        self.totalAmt=float(self.quantity.get())*itemdetails[2]
-
-        self.itemsList.insert(parent="",index=END,iid=self.totalItems,values=(self.totalItems+1,itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
-        self.CartItemsDic[self.itemNO.get()]=self.quantity.get()
         
-        self.totalPrice+=self.totalAmt
+    def updateTotalinfo(self):
+        self.totalPrice=0.0
+        for line in self.itemsList.get_children():
+            self.totalPrice+=float(self.itemsList.item(line)['values'][-1])
         self.totalPriceLabel.config(text=self.totalPrice)   
-        
-        self.deleteInputs()
-        self.totalItems+=1        
+
+    def addCart(self):
+
+
+        for entryWidget in self.getFrame.winfo_children():
+            if entryWidget.winfo_class()=="Entry":
+                if entryWidget.get()=="":
+                    messagebox.showwarning("Error","Invalid input")
+                    break
+
+        else:
+            itemdetails=self.billingObj.getItemSpecific(self.itemNO.get())
+            if self.add.cget('text')=="ADD":
+                self.totalAmt=float(self.quantity.get())*itemdetails[2]
+                self.itemsList.insert(parent="",index=END,iid=self.totalItems,values=(self.totalItems+1,itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
+                self.totalItems+=1   
+            elif self.add.cget('text')=="UPDATE":
+                self.totalAmt=float(self.quantity.get())*itemdetails[2]
+                print(self.totalAmt)
+                for line in self.itemsList.get_children():               
+                    value= self.itemsList.item(line)['values']
+                    if int(self.itemNO.get())==value[1]:
+                        self.itemsList.item(line,values=(value[0],itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
+                        break
+            self.updateTotalinfo()
+            self.deleteInputs()
 
     def deleteInputs(self):
         self.itemNO.delete(0,END)
+        self.itemName.delete(0,END)
         self.quantity.delete(0,END)
         self.itemNO.focus_set()
 
@@ -278,22 +325,79 @@ class getDataLayout:
         self.payModeLabel.grid(row=1,column=0,pady=5,padx=10)
         self.payMode.grid(row=1,column=1,pady=5,padx=10,sticky=W)
 
-
     def keyBindings(self):
 
         def itemNocheck(event):
             self.quantity.focus_set()
-            if self.itemNO.get() in self.CartItemsDic.keys():
-                self.add.config(text="UPDATE")
-            else:
-                self.add.config(text="ADD")
+            #if self.itemNO.get() in self.CartItemsDic.keys():
+            for line in self.itemsList.get_children():               
+                value= self.itemsList.item(line)['values']
+                if int(self.itemNO.get())==value[1]:
+                    self.add.config(text="UPDATE")
+                else:
+                    self.add.config(text="ADD")
                 
         def addingProcess(event):
             self.addCart()
             self.add.config(text="ADD")
+        
+        def searchProcess(event):
+            self.search.delete(0,END)
+            if self.itemName.get()=="" or event.keysym=="Escape":
+                self.search.place_forget()
+            else:
+                self.searchListPlace()
+        
+        def updateSearch(event):
+            print(event.widget.curselection()[0])
+            itemData=self.billingObj.getItemName(event.widget.get(event.widget.curselection()[0]))
+            print(itemData)
+            self.deleteInputs()
+            self.itemNO.insert(0,itemData[0])
+            self.itemName.insert(0,itemData[1])
+            self.search.place_forget()
+            self.quantity.focus_set()
+        
+        def listItemSelection(event):
+            key=event.keysym
+            if key=="Up":
+                if event.widget.curselection()[0]==0:
+                    self.itemName.focus_set()
+            elif key=="Down":
+                self.search.focus_set()
+                self.search.selection_set(0)
+                self.search.selection_anchor(0)
+
+
+        def listCursorSelection(event):
+
+            totalIndex=len(self.search.get(0,END))
+            self.search.selection_clear(0,END)
+            for i in range(0,totalIndex):
+                element=self.search.bbox(i)
+                if element[1]<event.y and (element[1]+element[3])>event.y:
+                    self.search.selection_set(i)
+                    break
+
+        self.itemNO.bind("<Tab>",itemNocheck)
         self.itemNO.bind("<Return>",itemNocheck)
         self.quantity.bind("<Return>",addingProcess)
 
+        self.itemName.bind("<KeyRelease>",searchProcess)
+        self.itemName.bind("<Down>",listItemSelection)
+        #self.search.bind("<<ListboxSelect>>",updateSearch)
+        self.search.bind("<Return>",updateSearch)
+        self.search.bind("<Button-1>",updateSearch)
+        self.search.bind("<Motion>",listCursorSelection)
+        self.search.bind("<Up>",listItemSelection)
+
+    def initializeValidate(self):
+        def intCallBack(value):
+                if str.isdigit(value) or value=="":
+                    return True
+                else:
+                    return False
+        self.entryIntReg=self.getFrame.register(intCallBack)
         
 class insertDataLayout:
     def __init__(self,main):
@@ -394,9 +498,9 @@ class insertDataLayout:
     def insertTreeDatabase(self):
 
         #self.itemTree.insert(parent="",index=END,iid=0,values=("1","2","3","4","5","6"))
-        self.conDat.getItemProcess()
+        itemsData=self.conDat.getItemProcess()
         sNO=0
-        for item in self.conDat.itemsData:
+        for item in itemsData:
             self.itemTree.insert(parent="",index=END,iid=sNO,text="parent",values=(sNO,item[0],item[1],item[2],item[3]))
             sNO+=1
 
