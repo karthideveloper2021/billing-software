@@ -1,15 +1,18 @@
 from tkinter import ttk
+from tkinter.constants import BROWSE
 class stylesheet:
     def __init__(self):
-        self.billingStyle=ttk.Style()
+        self.style=ttk.Style()
         self.styles()
         self.trickStyles()
+        self.getTreeview()
 
     def styles(self):
-        self.billingStyle.configure("C.TLabel",font=("impact",18,""))
-        self.billingStyle.configure("pay.TMenubutton",font=("",18,""))
+        self.style.configure("C.TLabel",font=("impact",18,""))
+        self.style.configure("pay.TMenubutton",font=("",18,""))
 
     def trickStyles(self):
+
         self.billingLabel={
             "font":("impact",18,""),
 
@@ -33,3 +36,18 @@ class stylesheet:
         self.billingListLabel={
             "font":("",22,"")
         }
+
+
+    def getTreeview(self):
+        self.style.configure("bill.Treeview",
+                            background="silver",
+                            fieldbackground="red",
+                            selectmode=BROWSE,
+                            font=("",14),
+                            )
+        self.style.map("bill.Treeview",
+                        background=[('selected','red')],
+                        )
+
+        self.style.configure("bill.Treeview.Heading",
+                                font=("arial rounded MT bold",16))

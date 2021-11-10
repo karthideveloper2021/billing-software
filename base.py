@@ -4,18 +4,16 @@ from style import stylesheet
 import database
 import time
 from configparser import ConfigParser
+import threading
+from PIL import Image,ImageTk
 
 class mainLayout:
     def __init__(self,main):
         self.master=main
         self.menu()
         self.header()
-        self.footer()
-        self.content()
-        
-        
-        
-                
+        self.content() 
+        self.footer()               
         
     def header(self):
         self.head=header(self.master)
@@ -29,12 +27,10 @@ class mainLayout:
         self.getObj=getDataLayout(self.contentFrame)
         self.insertObj=insertDataLayout(self.contentFrame)
         self.analysisObj=analysisLayout(self.contentFrame)
-        self.home()
+        self.data()
 
     def footer(self):
-        self.foot=Frame(self.master)
-        self.foot.pack(side=BOTTOM)
-        Label(self.foot,text="This is footer").pack()
+        self.foot=footer(self.master)
 
     def menu(self):
         self.menuBar=Menu(self.master)
@@ -80,7 +76,16 @@ class header:
         self.fontcolor=["red","black","green","yellow","green","brown","pink","blue"]
         self.clock()
         self.mainTitle()
-        
+        self.currentDate()
+
+    def currentDate(self):
+        self.dateLabel=Label(self.headerFrame,text=time.strftime("%d/%m/%Y"))
+        self.dateLabel.pack(side=RIGHT,padx=10,pady=5)
+        self.dateLabel.config(
+            background="black",
+            foreground="white",
+            font=("",18,"")
+        )       
 
     def clock(self):
 
@@ -109,24 +114,34 @@ class header:
             colorIndex+=1
         self.title.after(800,self.colorTitle,colorIndex) 
 
+class footer:
+    def __init__(self,main):
+        self.master=main
+        self.statusBar()
+    
+    def statusBar(self):
+        self.status=Frame(self.master)
+        self.status.pack(side=BOTTOM,fill=X)
+
+
 class getDataLayout:
     def __init__(self,main):
         self.master=Frame(main)
         self.master.grid(row=0,column=0,sticky=NSEW)
-        
+        stylesheet().getTreeview()
         self.initialize()
         self.billingInput()
         self.billingList()
         self.keyBindings()
 
-        
     
     def billingInput(self):
         
         self.getFrame=Frame(self.master,bg="red")
-        self.getFrame.pack(side=LEFT,anchor=N,padx=100)
+        self.getFrame.pack(side=LEFT,anchor=N,padx=25)
 
         self.initializeValidate()
+        self.addReset=Frame(self.getFrame)
 
         self.inputFont=("",18,"")
         self.LabelFont=("impact",18,"")
@@ -135,9 +150,9 @@ class getDataLayout:
         self.itemNameLabel=Label(self.getFrame,text="ITEM NAME",**stylesheet().billingLabel)
         self.itemName=Entry(self.getFrame,**stylesheet().billingEntry)
         self.quantityLabel=Label(self.getFrame,text="QUANTITY",**stylesheet().billingLabel)
-        self.quantity=Entry(self.getFrame,**stylesheet().billingEntry,validate="key",validatecommand=(self.entryIntReg,"%P"))
-        self.add=Button(self.getFrame,text="ADD",font=self.LabelFont,width=10,command=self.addCart)
-        self.reset=Button(self.getFrame,text="RESET",font=self.LabelFont,width=10)
+        self.quantity=Entry(self.getFrame,**stylesheet().billingEntry,validate="key",validatecommand=(self.entryFloatReg,"%P"))
+        self.add=Button(self.addReset,text="ADD",font=self.LabelFont,width=10,command=self.addCart)
+        self.reset=Button(self.addReset,text="RESET",font=self.LabelFont,width=10)
 
         self.itemLabel.pack(pady=10)
         self.itemNO.pack(pady=10,padx=20)
@@ -145,8 +160,9 @@ class getDataLayout:
         self.itemName.pack(pady=10,padx=20)
         self.quantityLabel.pack(pady=10,padx=20)
         self.quantity.pack(pady=10,padx=20)
-        self.add.pack(pady=10)
-        self.reset.pack(pady=10)
+        self.add.pack(side=LEFT,padx=10)
+        self.reset.pack(side=LEFT,padx=10)
+        self.addReset.pack(pady=5)
         
         self.itemNO.focus_set()
 
@@ -157,26 +173,54 @@ class getDataLayout:
     
         print(self.itemNO.winfo_class())
 
-        self.search=Listbox(self.getFrame,font=self.itemName.cget('font'),height=0)
+        self.searchFrame=Frame(self.getFrame)
+        self.search=Listbox(self.searchFrame,font=self.itemName.cget('font'),height=4,selectmode=BROWSE,selectbackground="red",activestyle="dotbox")
+        self.search.pack(side=LEFT)
+        self.searchScroll=Scrollbar(self.searchFrame,orient=VERTICAL,command=self.search.yview)
+        self.searchScroll.pack(side=RIGHT,fill=Y)
+        self.search.config(yscrollcommand=self.searchScroll.set)
 
-    def searchListPlace(self):
+    def customerDetails(self):
         
-        self.search.place(x=self.itemName.winfo_x(),y=self.itemName.winfo_y()+2*self.itemName.cget('width'))
-        itemsData=self.billingObj.getItemProcessItemNames()
-        print(itemsData)
-        for items in itemsData:
-            if self.itemName.get().lower() in items[0].lower():
-                self.search.insert(END,items[0])
+        self.comboFont=("lucida fax",14,"")
+
+        self.customerDetailsFrame=Frame(self.getFrame)
+        self.customerDetailsFrame.pack(pady=50)
+
+        self.cusNameLabel=Label(self.customerDetailsFrame,text="CUSTOMER NAME",**stylesheet().billingLabel)
+        self.cusName=Entry(self.customerDetailsFrame,**stylesheet().customerEntry)
+        self.cuspnLabel=Label(self.customerDetailsFrame,text="CUSTOMER PHONE.NO",**stylesheet().billingLabel)
+        self.cuspn=Entry(self.customerDetailsFrame,**stylesheet().customerEntry)
+        self.payModeLabel=Label(self.customerDetailsFrame,text="PAYMENT",**stylesheet().billingLabel)
+        
+        self.paySelect=StringVar()
+        self.payList=["CASH","CARD","UPI"]
+        self.paySelect.set(self.payList[0])
+        self.payMode=OptionMenu(self.customerDetailsFrame,self.paySelect,*self.payList)
+        self.payMode.config(**stylesheet().customerOption)
+        self.payModeOption=self.customerDetailsFrame.nametowidget(self.payMode.menuname)
+        self.payModeOption.config(**stylesheet().customerOption)
+    
+        self.cusNameLabel.grid(row=0,column=0,pady=5,padx=10,sticky=W)
+        self.cusName.grid(row=0,column=1,pady=5,padx=10)
+        self.cuspnLabel.grid(row=1,column=0,pady=5,padx=10)
+        self.cuspn.grid(row=1,column=1,pady=5,padx=10)
+        self.payModeLabel.grid(row=2,column=0,pady=5,padx=10)
+        self.payMode.grid(row=2,column=1,pady=5,padx=10,sticky=W)
+
 
     def billingList(self):
         
-        self.billingListFrame=Frame(self.master,bg="green")
-        self.billingListFrame.pack(side=RIGHT,padx=20,fill=Y)
-
+        self.billingViewFrame=Frame(self.master,bg="green")
+        self.billingViewFrame.pack(side=LEFT,padx=5,fill=BOTH,expand=1)
+      
         self.billingInfo()
+        self.billingListFrame=Frame(self.billingViewFrame)
+        self.billingListFrame.pack(pady=5,fill=BOTH,expand=1)
 
-        self.itemsList=ttk.Treeview(self.billingListFrame)
-        self.itemsList.pack()
+        self.itemsList=ttk.Treeview(self.billingListFrame,style="bill.Treeview")
+        self.itemsList.pack(side=LEFT,pady=5,fill=BOTH,expand=1)
+      
 
         self.itemsList['columns']=["sno","no","name","quantity","rate","price"]
 
@@ -196,22 +240,56 @@ class getDataLayout:
         self.itemsList.column("rate",width=120,minwidth=50,anchor=E)
         self.itemsList.column("price",width=120,minwidth=50,anchor=E)
 
+        self.remList=ttk.Treeview(self.billingListFrame)
+        self.remList.pack(side=LEFT,fill=Y,pady=5,padx=0)
+        self.remImage=PhotoImage(file="remove.png")
+        self.remList.column("#0",width=50,stretch=OFF,anchor=W)
+        
+        self.itemsListScroll=Scrollbar(self.billingListFrame)
+        self.itemsListScroll.pack(side=LEFT,fill=Y)
+        self.itemsList.config(yscrollcommand=self.itemsListScroll.set)
+        self.remList.config(yscrollcommand=self.itemsListScroll.set)
+        #self.itemsList.configure("removeItem",image=remImage)
+
+        def makeSelection(event):
+        
+            row=event.widget.focus()
+            #print(event.widget.item(row,'values'))
+            print(self.itemsList.item(row)['values'])
+        def removeItem(event):
+            pass
+            # for line in self.itemsList.get_children():
+            #     value=self.itemsList.item(line)['values']
+            #     if value[1]==itemNO:
+            #         self.itemsList.delete(line)
+            #         for widget in self.remList.winfo_children():
+            #             if widget.cget('text')==itemNO:
+            #                 widget.destroy()
+            #                 break
+        
+
+        self.itemsList.bind("<Button-1>",makeSelection)
+        self.remList.bind("<Button-1>",removeItem)
         self.billingCheckout() 
         
 
     def billingInfo(self):
         self.billingNumNext()
-        self.billingInfoFrame=Frame(self.billingListFrame,bg="blue")
-        self.billingInfoFrame.pack(fill=X)
+        self.billingInfoFrame=Frame(self.billingViewFrame,bg="blue")
+        self.billingInfoFrame.pack(side=TOP,fill=X)
 
-        self.title=Label(self.billingInfoFrame,text="BILLING")
+        self.title=Label(self.billingInfoFrame,
+                            text="BILLING",
+                            font=("rockwell",20,"bold"))
         self.title.pack()
 
-        self.billNoLabel=Label(self.billingInfoFrame,text="BILL NO")
+        self.billNoLabel=Label(self.billingInfoFrame,text="BILL NO",
+                            font=("cambria",16,"bold"))
         self.billNoLabel.pack(side=LEFT,padx=10)
 
-        self.billNo=Label(self.billingInfoFrame,text=self.billNum)
-        self.billNo.pack()
+        self.billNo=Label(self.billingInfoFrame,text=self.billNum,
+                            font=("cambria",14,""))
+        self.billNo.pack(side=LEFT,padx=5)
         
 
     def billingNumNext(self):
@@ -225,16 +303,17 @@ class getDataLayout:
             self.customerCount=1
             self.parserControl.set('customerDetails','date',date)
         self.parserControl.set('customerDetails','customerCount',str(self.customerCount))
-                    
-        self.billNum="B"+date[:2]+time.strftime("%w")+str(self.customerCount)
+        print(self.customerCount)   
+        self.billNum="B"+date[:2]+date[3:5]+time.strftime("%y")+str(self.customerCount)
+        print(self.billNum)
 
     def configWriting(self):
         with open("settings.ini","w") as settingsFile:
             self.parserControl.write(settingsFile)
 
     def billingCheckout(self):
-        self.checkoutFrame=Frame(self.billingListFrame,bg="brown")
-        self.checkoutFrame.pack(side=RIGHT,anchor=N,padx=50,pady=10)
+        self.checkoutFrame=Frame(self.billingViewFrame,bg="brown")
+        self.checkoutFrame.pack(side=RIGHT,anchor=S,padx=50,pady=10)
 
         self.totalLabel=Label(self.checkoutFrame,text="TOTAL",**stylesheet().billingListLabel)
         self.totalLabel.grid(row=0,column=0)
@@ -252,6 +331,7 @@ class getDataLayout:
         self.CartItemsDic.clear()
         self.configWriting()
         self.billingNumNext()
+        self.prepareEverythingForNext()
         self.billNo.config(text=self.billNum)
         
     def updateTotalinfo(self):
@@ -269,22 +349,32 @@ class getDataLayout:
                     messagebox.showwarning("Error","Invalid input")
                     break
 
-        else:
-            itemdetails=self.billingObj.getItemSpecific(self.itemNO.get())
-            if self.add.cget('text')=="ADD":
-                self.totalAmt=float(self.quantity.get())*itemdetails[2]
-                self.itemsList.insert(parent="",index=END,iid=self.totalItems,values=(self.totalItems+1,itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
-                self.totalItems+=1   
-            elif self.add.cget('text')=="UPDATE":
-                self.totalAmt=float(self.quantity.get())*itemdetails[2]
-                print(self.totalAmt)
-                for line in self.itemsList.get_children():               
-                    value= self.itemsList.item(line)['values']
-                    if int(self.itemNO.get())==value[1]:
-                        self.itemsList.item(line,values=(value[0],itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
-                        break
-            self.updateTotalinfo()
-            self.deleteInputs()
+        itemdetails=self.billingObj.getItemSpecific(self.itemNO.get())
+        if self.add.cget('text')=="ADD":
+            self.totalItems+=1 
+            self.totalAmt=float(self.quantity.get())*itemdetails[2]
+            self.itemsList.insert(parent="",index=END,
+                        values=(self.totalItems,itemdetails[0],itemdetails[1],self.quantity.get(),itemdetails[2],self.totalAmt))
+            self.remList.insert("",index=END,image=self.remImage)
+
+        elif self.add.cget('text')=="UPDATE":
+            self.totalAmt=float(self.quantity.get())*itemdetails[2]
+            print(self.totalAmt)
+            for line in self.itemsList.get_children():               
+                value= self.itemsList.item(line)['values']
+                if int(self.itemNO.get())==value[1]:
+                    self.itemsList.item(line,values=(value[0],value[1],value[2],self.quantity.get(),value[4],self.totalAmt))
+                    break
+        self.updateTotalinfo()
+        self.deleteInputs()
+    
+   
+    def prepareEverythingForNext(self):
+        self.itemsList.delete(*self.itemsList.get_children())
+        self.deleteInputs()
+        self.cusName.delete(0,END)
+        self.paySelect.set(self.payList[0])
+        self.updateTotalinfo()
 
     def deleteInputs(self):
         self.itemNO.delete(0,END)
@@ -301,52 +391,54 @@ class getDataLayout:
         self.parserControl=ConfigParser()
         self.parserControl.read("settings.ini")
 
-    def customerDetails(self):
-        
-        self.comboFont=("lucida fax",14,"")
-
-        self.customerDetailsFrame=Frame(self.getFrame)
-        self.customerDetailsFrame.pack(pady=50)
-
-        self.cusNameLabel=Label(self.customerDetailsFrame,text="CUSTOMER NAME",**stylesheet().billingLabel)
-        self.cusName=Entry(self.customerDetailsFrame,**stylesheet().customerEntry)
-        self.payModeLabel=Label(self.customerDetailsFrame,text="PAYMENT",**stylesheet().billingLabel)
-        
-        self.paySelect=StringVar()
-        self.payList=["CASH","CARD","UPI"]
-        self.paySelect.set(self.payList[0])
-        self.payMode=OptionMenu(self.customerDetailsFrame,self.paySelect,*self.payList)
-        self.payMode.config(**stylesheet().customerOption)
-        self.payModeMenu=self.customerDetailsFrame.nametowidget(self.payMode.menuname)
-        self.payModeMenu.config(**stylesheet().customerOption)
-
-        self.cusNameLabel.grid(row=0,column=0,pady=5,padx=10)
-        self.cusName.grid(row=0,column=1,pady=5,padx=10)
-        self.payModeLabel.grid(row=1,column=0,pady=5,padx=10)
-        self.payMode.grid(row=1,column=1,pady=5,padx=10,sticky=W)
-
+   
     def keyBindings(self):
-
+        
+        self.notFound=Label(self.getFrame,text="Item not found")
         def itemNocheck(event):
-            self.quantity.focus_set()
-            #if self.itemNO.get() in self.CartItemsDic.keys():
-            for line in self.itemsList.get_children():               
-                value= self.itemsList.item(line)['values']
-                if int(self.itemNO.get())==value[1]:
-                    self.add.config(text="UPDATE")
+            self.itemName.delete(0,END)
+            self.quantity.delete(0,END)
+            if self.itemNO.get()=="":
+                self.itemName.focus_set()
+            else:
+                #if self.itemNO.get() in self.CartItemsDic.keys():
+                itemsData=self.billingObj.getItemSpecific(int(self.itemNO.get()))
+                if itemsData is not None:
+                    for line in self.itemsList.get_children():               
+                        value= self.itemsList.item(line)['values']
+                        if int(self.itemNO.get())==value[1]:
+                            self.add.config(text="UPDATE")
+                            break
+                                          
+                    self.itemName.insert(0,itemsData[1])
+                    self.quantity.focus_set()
                 else:
-                    self.add.config(text="ADD")
-                
+                    self.notFound.place(x=self.itemNO.winfo_x(),y=self.itemNO.winfo_y()-20)
+
+        def hideItemNOStuff(event):
+            self.notFound.place_forget()
+            self.add.config(text="ADD")
+
         def addingProcess(event):
             self.addCart()
             self.add.config(text="ADD")
         
+        def searchListPlace():
+        
+            self.searchFrame.place(x=self.itemName.winfo_x(),y=self.itemName.winfo_y()+2*self.itemName.cget('width'))
+            itemsData=self.billingObj.getItemProcessItemNames()
+            print(itemsData)
+            for items in itemsData:
+                if self.itemName.get().lower() in items[0].lower():
+                    self.search.insert(END,items[0])
+
         def searchProcess(event):
             self.search.delete(0,END)
             if self.itemName.get()=="" or event.keysym=="Escape":
-                self.search.place_forget()
+                self.searchFrame.place_forget()
+                self.itemName.focus_set()
             else:
-                self.searchListPlace()
+                searchListPlace()
         
         def updateSearch(event):
             print(event.widget.curselection()[0])
@@ -355,32 +447,37 @@ class getDataLayout:
             self.deleteInputs()
             self.itemNO.insert(0,itemData[0])
             self.itemName.insert(0,itemData[1])
-            self.search.place_forget()
+            self.searchFrame.place_forget()
             self.quantity.focus_set()
         
         def listItemSelection(event):
             key=event.keysym
             if key=="Up":
                 if event.widget.curselection()[0]==0:
-                    self.itemName.focus_set()
+                    self.itemName.focus_set()            
             elif key=="Down":
                 self.search.focus_set()
+                self.search.activate(0)
                 self.search.selection_set(0)
-                self.search.selection_anchor(0)
-
 
         def listCursorSelection(event):
-
-            totalIndex=len(self.search.get(0,END))
+            #print(event.widget.curselection()[0])
             self.search.selection_clear(0,END)
-            for i in range(0,totalIndex):
-                element=self.search.bbox(i)
-                if element[1]<event.y and (element[1]+element[3])>event.y:
-                    self.search.selection_set(i)
-                    break
+            self.search.focus_set()
+            for i in range(0,event.widget.size()):
+                element=event.widget.bbox(i)
+                print(element)
+                if element:
+                    if element[1]<=event.y and (element[1]+element[3])>=event.y:
+                        self.search.activate(i)
+                        self.search.selection_set(i)
+                        break
+                
 
+        
         self.itemNO.bind("<Tab>",itemNocheck)
         self.itemNO.bind("<Return>",itemNocheck)
+        self.itemNO.bind("<KeyPress>",hideItemNOStuff)
         self.quantity.bind("<Return>",addingProcess)
 
         self.itemName.bind("<KeyRelease>",searchProcess)
@@ -390,33 +487,71 @@ class getDataLayout:
         self.search.bind("<Button-1>",updateSearch)
         self.search.bind("<Motion>",listCursorSelection)
         self.search.bind("<Up>",listItemSelection)
-
+        self.search.bind("<Escape>",searchProcess)
+        self.search.bind("<MouseWheel>",listCursorSelection)
+        
+        #self.search.see(10)
+    
     def initializeValidate(self):
         def intCallBack(value):
-                if str.isdigit(value) or value=="":
+            if value.isdigit() or value=="":
+                return True
+            else:
+                return False
+        def floatCallBack(value):
+            if value.isdigit() or value=="":
+                return True
+            else:
+                try:
+                    float(value)
                     return True
-                else:
+                except:
                     return False
         self.entryIntReg=self.getFrame.register(intCallBack)
+        self.entryFloatReg=self.getFrame.register(floatCallBack)
         
 class insertDataLayout:
     def __init__(self,main):
 
         self.master=Frame(main)
         #self.master.place(x=0,y=0)
-        self.master.grid(row=0,column=0,sticky=NSEW)       
+        self.master.grid(row=0,column=0,sticky=NSEW)   
 
+        self.style=ttk.Style(self.master)    
+        #stylesheet().getTreeview()
         self.initializeDb()
-        self.inputBox()
+        #self.inputBox()
+        self.searchFilter()
         self.listView()
-
+        self.tools()
+        self.keybindings()
         
     def initializeDb(self):
         self.conDat=database.connectData()
- 
+    
+    def searchFilter(self):
+        self.searFil=LabelFrame(self.master,text="Search & Filter")
+        self.searFil.pack(side=TOP,padx=50,pady=5,fill=X)
+
+        self.rateFromLabel=Label(self.searFil,text="Rate: From")
+        self.rateToLabel=Label(self.searFil,text="To")
+
+        self.search=Entry(self.searFil,width=50,**stylesheet().billingEntry)
+        self.rateFrom=Entry(self.searFil,width=10,**stylesheet().billingEntry)
+        self.rateTo=Entry(self.searFil,**stylesheet().billingEntry)
+
+        self.search.pack(side=LEFT,padx=50,pady=10)
+        self.rateFromLabel.pack(side=LEFT,padx=20,pady=10)
+        self.rateFrom.pack(side=LEFT,padx=10,pady=10)
+        self.rateToLabel.pack(side=LEFT,padx=10,pady=10)
+        self.rateTo.pack(side=LEFT,padx=20,pady=10)
+
+
     def inputBox(self):
         self.putFrame=Frame(self.master)
-        self.putFrame.pack(side=LEFT,padx=100,pady=100,anchor=N)
+        #self.putFrame.pack(side=LEFT,padx=50,pady=100,anchor=N)
+        print(int(self.master.winfo_rootx()/2))
+        self.putFrame.place(x=int(self.master.winfo_screenwidth()/2),y=int(self.master.winfo_rooty()/2))
 
         self.inputFont=("",18,"")
         self.LabelFont=("",15,"")
@@ -470,11 +605,21 @@ class insertDataLayout:
       
         
     def listView(self):
-        self.listFrame=Frame(self.master)
-        self.listFrame.pack(side=RIGHT,padx=100,anchor=CENTER)
 
-        self.itemTree=ttk.Treeview(self.listFrame)
-        self.itemTree.pack()
+        self.listFrame=Frame(self.master,bg="yellow")
+        self.listFrame.pack(side=LEFT,padx=50,fill=BOTH,expand=1)
+
+        self.style.configure("db.Treeview",
+                            font=("",13),
+                                                       
+                            )
+        self.style.configure("db.Treeview.Heading",
+                            font=("",15,"bold"),
+                                                       
+                            )
+
+        self.itemTree=ttk.Treeview(self.listFrame,style="db.Treeview")
+        self.itemTree.pack(side=LEFT,fill=BOTH,expand=1)
     
         self.itemTree['columns']=("serial","no","name","price","details")
 
@@ -495,14 +640,48 @@ class insertDataLayout:
 
         self.insertTreeDatabase()
 
+    def tools(self):
+            self.toolFrame=Frame(self.listFrame)
+            self.toolFrame.pack(side=LEFT,fill=Y)
+
+            resized=(Image.open("add_item_but_normal.png")).resize((120,50),Image.ANTIALIAS)
+            self.add_itemImg=ImageTk.PhotoImage(resized)
+
+            self.add=Button(self.toolFrame,image=self.add_itemImg,border=0)
+            self.delet=Button(self.toolFrame,text="DELETE",font=("",14))
+
+            self.add.pack(padx=10,pady=10)
+            self.delet.pack(padx=10,pady=10)
+
     def insertTreeDatabase(self):
 
         #self.itemTree.insert(parent="",index=END,iid=0,values=("1","2","3","4","5","6"))
         itemsData=self.conDat.getItemProcess()
         sNO=0
         for item in itemsData:
-            self.itemTree.insert(parent="",index=END,iid=sNO,text="parent",values=(sNO,item[0],item[1],item[2],item[3]))
             sNO+=1
+            self.itemTree.insert(parent="",index=END,iid=sNO,text="parent",values=(sNO,item[0],item[1],item[2],item[3]))
+    
+
+    def keybindings(self):
+        def searching(event):
+            self.itemTree.delete(*self.itemTree.get_children())
+            itemData=self.conDat.getItemProcess()
+            sNO=1
+            if self.search.get()!="":
+                for record in itemData:
+                
+                    if self.search.get().lower() in record[1].lower():
+                        print("test",record[1].lower())
+                        self.itemTree.insert("",END,values=(sNO,record[0],record[1],record[2],record[3]))
+                        sNO+=1
+                    elif self.search.get().isdigit():
+                        if self.search.get() in str(record[0]):
+                            self.itemTree.insert("",END,values=(sNO,record[0],record[1],record[2],record[3]))
+                            sNO+=1
+            else:
+                self.insertTreeDatabase()
+        self.search.bind("<KeyRelease>",searching)
 
 class analysisLayout:
     def __init__(self,main):
