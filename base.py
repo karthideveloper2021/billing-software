@@ -1,10 +1,11 @@
 from tkinter import *  
 from tkinter import ttk,messagebox
-from style import stylesheet
+from style import stylesheet,kartButton
 import database
 import time
 from configparser import ConfigParser
 import threading
+import winsound
 from PIL import Image,ImageTk
 
 class mainLayout:
@@ -123,7 +124,6 @@ class footer:
         self.status=Frame(self.master)
         self.status.pack(side=BOTTOM,fill=X)
 
-
 class getDataLayout:
     def __init__(self,main):
         self.master=Frame(main)
@@ -152,7 +152,7 @@ class getDataLayout:
         self.quantityLabel=Label(self.getFrame,text="QUANTITY",**stylesheet().billingLabel)
         self.quantity=Entry(self.getFrame,**stylesheet().billingEntry,validate="key",validatecommand=(self.entryFloatReg,"%P"))
         self.add=Button(self.addReset,text="ADD",font=self.LabelFont,width=10,command=self.addCart)
-        self.reset=Button(self.addReset,text="RESET",font=self.LabelFont,width=10)
+        self.reset=Button(self.addReset,text="RESET",font=self.LabelFont,width=10,command=self.deleteInputs)
 
         self.itemLabel.pack(pady=10)
         self.itemNO.pack(pady=10,padx=20)
@@ -242,7 +242,7 @@ class getDataLayout:
 
         self.remList=ttk.Treeview(self.billingListFrame)
         self.remList.pack(side=LEFT,fill=Y,pady=5,padx=0)
-        self.remImage=PhotoImage(file="remove.png")
+        self.remImage=PhotoImage(file="resource/ui/remove.png")
         self.remList.column("#0",width=50,stretch=OFF,anchor=W)
         
         self.itemsListScroll=Scrollbar(self.billingListFrame)
@@ -371,6 +371,7 @@ class getDataLayout:
    
     def prepareEverythingForNext(self):
         self.itemsList.delete(*self.itemsList.get_children())
+        self.remList.delete(*self.remList.get_children())
         self.deleteInputs()
         self.cusName.delete(0,END)
         self.paySelect.set(self.payList[0])
@@ -548,10 +549,13 @@ class insertDataLayout:
 
 
     def inputBox(self):
-        self.putFrame=Frame(self.master)
+        self.putFrame=Toplevel(self.master)
+        self.putFrame.transient(self.master)
+        threading.Thread(target=lambda:winsound.PlaySound("*", winsound.SND_ALIAS)).start()
+        
         #self.putFrame.pack(side=LEFT,padx=50,pady=100,anchor=N)
         print(int(self.master.winfo_rootx()/2))
-        self.putFrame.place(x=int(self.master.winfo_screenwidth()/2),y=int(self.master.winfo_rooty()/2))
+        #self.putFrame.place(x=int(self.master.winfo_screenwidth()/2),y=int(self.master.winfo_rooty()/2))
 
         self.inputFont=("",18,"")
         self.LabelFont=("",15,"")
@@ -583,7 +587,6 @@ class insertDataLayout:
         self.add.grid(row=5,column=0,padx=10,pady=10)
         self.reset.grid(row=5,column=1,padx=10,pady=10,sticky=W)
 
-    
        
     def addItem(self):
 
@@ -639,19 +642,19 @@ class insertDataLayout:
 
 
         self.insertTreeDatabase()
+       
 
     def tools(self):
             self.toolFrame=Frame(self.listFrame)
             self.toolFrame.pack(side=LEFT,fill=Y)
 
-            resized=(Image.open("add_item_but_normal.png")).resize((120,50),Image.ANTIALIAS)
-            self.add_itemImg=ImageTk.PhotoImage(resized)
-
-            self.add=Button(self.toolFrame,image=self.add_itemImg,border=0)
-            self.delet=Button(self.toolFrame,text="DELETE",font=("",14))
+            self.add=kartButton(master=self.toolFrame,command=self.inputBox,file="add_item_but")
+            self.delet=kartButton(master=self.toolFrame,file="del_item_but")
+            self.export=kartButton(master=self.toolFrame,text="EXPORT")
 
             self.add.pack(padx=10,pady=10)
             self.delet.pack(padx=10,pady=10)
+            self.export.pack(padx=10,pady=10)
 
     def insertTreeDatabase(self):
 
